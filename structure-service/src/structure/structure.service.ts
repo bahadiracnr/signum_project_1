@@ -113,15 +113,15 @@ RETURN MAX(toInteger(SUBSTRING(t.no, 2))) AS lastNo
 
   async createSpace(data: Record<string, any>): Promise<Structure> {
     const queryGetLastNo = `
-    MATCH (t:Floor)
-    RETURN MAX(toInteger(SUBSTRING(t.no, 2))) AS lastNo
-    
-        `;
-    const resultLastNo = await this.neo4jService.read(queryGetLastNo);
+    MATCH (s:Space)
+    RETURN COALESCE(MAX(toInteger(SUBSTRING(s.no, 2))), 0) AS lastNo
+    `;
 
+    const resultLastNo = await this.neo4jService.read(queryGetLastNo);
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const lastNo = resultLastNo.records[0].get('lastNo');
-    const newNo = `T${(Number(lastNo || 0) + 1).toString().padStart(4, '0')}`;
+    const newNo = `T${(Number(lastNo) + 1).toString().padStart(3, '0')}`;
+
     const queryCreateTask = `
     MATCH (fn:Floor)
     WHERE id(fn) = $id
@@ -129,6 +129,7 @@ RETURN MAX(toInteger(SUBSTRING(t.no, 2))) AS lastNo
     CREATE (fn)-[:HAS_SPACE]->(t)
     RETURN t
     `;
+
     data.no = newNo;
     const result = await this.neo4jService.write(queryCreateTask, {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -136,7 +137,7 @@ RETURN MAX(toInteger(SUBSTRING(t.no, 2))) AS lastNo
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       coname: data.coname,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      id: parseInt(data.id, 10), // ID integer olarak gönderilmeli
+      id: parseInt(data.id, 10),
     });
 
     if (!result.records.length) {
