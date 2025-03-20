@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Task } from './task.entity';
 import { Neo4jService } from 'nest-neo4j/dist';
 import { Kafka, Producer } from 'kafkajs';
+import { TaskStatus } from '../enums/TaskStatus';
 
 @Injectable()
 export class TaskService implements OnModuleInit {
@@ -26,23 +27,31 @@ export class TaskService implements OnModuleInit {
 
   async createTask(data: Record<string, any>): Promise<Task> {
     const queryGetLastNo = `
-MATCH (t:tasks)
-RETURN MAX(toInteger(SUBSTRING(t.no, 2))) AS lastNo
-
-    `;
+  MATCH (t:tasks)
+  RETURN MAX(toInteger(SUBSTRING(t.no, 2))) AS lastNo
+      `;
     const resultLastNo = await this.neo4jService.read(queryGetLastNo);
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const lastNo = resultLastNo.records[0].get('lastNo');
     const newNo = `T${(Number(lastNo || 0) + 1).toString().padStart(4, '0')}`;
 
+    // Status değerini enum olarak kontrol et
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    if (!Object.values(TaskStatus).includes(data.status)) {
+      throw new Error(`Invalid status value: ${data.status}`);
+    }
+
     const queryCreateTask = `
-    MATCH (s:task {name: "task"}) 
-    CREATE (t:tasks {no: $no, location: $location, status: $status, name: $name, description: $description})
-    CREATE (s)-[:HAS_TASKS]->(t) 
-    RETURN t
-    `;
+      MATCH (s:task {name: "task"}) 
+      CREATE (t:tasks {no: $no, location: $location, status: $status, name: $name, description: $description})
+      CREATE (s)-[:HAS_TASKS]->(t) 
+      RETURN t
+      `;
+
     data.no = newNo;
+    data.status = TaskStatus[data.status as keyof typeof TaskStatus]; // Enum'a çevirme
+
     const result = await this.neo4jService.write(queryCreateTask, data);
 
     const node = result.records[0].get('t') as { properties: Task };

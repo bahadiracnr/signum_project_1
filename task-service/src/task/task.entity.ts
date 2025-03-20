@@ -1,12 +1,8 @@
+import { TaskStatus } from '../enums/TaskStatus';
 export interface Task {
   location: string;
-  status: string;
+  status: TaskStatus;
 }
-
-// yazım yanlışı olmayacak
-
-// Task
-// status enum olacak ve 3 farklı değer alacak (TODO, IN_PROGRESS, DONE)
 
 // create update, delete işlemlerinde loglama yapılıyor mu ?
 
