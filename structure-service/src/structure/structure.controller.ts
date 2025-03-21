@@ -16,10 +16,11 @@ export class StructureController {
 
   @Post()
   createStructures(
+    @Query('id') id: string,
     @Query('type') type: StructureType,
     @Body() body: Record<string, any>,
   ) {
-    return this.structureService.createStructures(type, body);
+    return this.structureService.createStructures(type, id, body);
   }
 
   @Get()

@@ -30,15 +30,15 @@ export class StructureService implements OnModuleInit {
 
   async createStructures(
     type: StructureType,
-    id: string,
+
     data: Record<string, any>,
   ): Promise<Structure> {
     if (type === StructureType.BUILD) {
       return this.createBuild(data);
     } else if (type === StructureType.FLOOR) {
-      return this.createFloor(id, data);
+      return this.createFloor(data);
     } else if (type === StructureType.SPACE) {
-      return this.createSpace(id, data);
+      return this.createSpace(data);
     }
     throw new Error('Structure not found');
   }
@@ -70,44 +70,51 @@ RETURN t
     return properties;
   }
 
-  async createFloor(id: string, data: Record<string, any>): Promise<Structure> {
+  async createFloor(data: Record<string, any>): Promise<Structure> {
     const queryGetLastNo = `
-      MATCH (t:Floor)
-      RETURN MAX(toInteger(SUBSTRING(t.no, 2))) AS lastNo
-    `;
+MATCH (t:Floor)
+RETURN MAX(toInteger(SUBSTRING(t.no, 2))) AS lastNo
 
+    `;
     const resultLastNo = await this.neo4jService.read(queryGetLastNo);
+
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const lastNo = resultLastNo.records[0].get('lastNo');
     const newNo = `F${(Number(lastNo || 0) + 1).toString().padStart(4, '0')}`;
 
     const queryCreateTask = `
-      MATCH (fn:Build)
-      WHERE id(fn) = $id
-      CREATE (t:Floor {no: $no, coname: $coname})
-      CREATE (fn)-[:HAS_FLOOR]->(t)
-      RETURN t
+    MATCH (fn:Build)
+    WHERE id(fn) = $id
+    CREATE (t:Floor {no: $no, coname: $coname})
+    CREATE (fn)-[:HAS_FLOOR]->(t)
+    RETURN t
     `;
 
+    data.no = newNo;
+
     const result = await this.neo4jService.write(queryCreateTask, {
-      no: newNo,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      no: data.no,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       coname: data.coname,
-      id: parseInt(id, 10), // id artık parametre olarak geliyor
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      id: parseInt(data.id, 10), // ID integer olarak gönderilmeli
     });
 
     if (!result.records.length) {
       throw new Error('No records found, possibly incorrect Build ID');
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    return result.records[0].get('t').properties as Structure;
+    const node = result.records[0].get('t') as { properties: Structure };
+    const properties = node.properties;
+    await this.sendToKafka('create', properties);
+    return properties;
   }
 
-  async createSpace(id: string, data: Record<string, any>): Promise<Structure> {
+  async createSpace(data: Record<string, any>): Promise<Structure> {
     const queryGetLastNo = `
-      MATCH (s:Space)
-      RETURN COALESCE(MAX(toInteger(SUBSTRING(s.no, 2))), 0) AS lastNo
+    MATCH (s:Space)
+    RETURN COALESCE(MAX(toInteger(SUBSTRING(s.no, 2))), 0) AS lastNo
     `;
 
     const resultLastNo = await this.neo4jService.read(queryGetLastNo);
@@ -116,18 +123,21 @@ RETURN t
     const newNo = `T${(Number(lastNo) + 1).toString().padStart(3, '0')}`;
 
     const queryCreateTask = `
-      MATCH (fn:Floor)
-      WHERE id(fn) = $id
-      CREATE (t:Space {no: $no, coname: $coname})
-      CREATE (fn)-[:HAS_SPACE]->(t)
-      RETURN t
+    MATCH (fn:Floor)
+    WHERE id(fn) = $id
+    CREATE (t:Space {no: $no, coname: $coname})
+    CREATE (fn)-[:HAS_SPACE]->(t)
+    RETURN t
     `;
 
+    data.no = newNo;
     const result = await this.neo4jService.write(queryCreateTask, {
-      no: newNo,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      no: data.no,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       coname: data.coname,
-      id: parseInt(id, 10), // Artık data.id yerine doğrudan parametre olarak alınıyor
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      id: parseInt(data.id, 10),
     });
 
     if (!result.records.length) {
