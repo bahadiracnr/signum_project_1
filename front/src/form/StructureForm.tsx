@@ -39,8 +39,21 @@ export default function Form({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (task && task.id !== undefined) {
-        await axios.put(`http://localhost:5006/structure?type=BUILD`, formData);
+      if (task && task.id !== undefined && task.type === 'BUILD') {
+        await axios.put(
+          `http://localhost:5006/structure?type=BUILD&id=${task.id}`,
+          formData,
+        );
+      } else if (task && task.id !== undefined && task.type === 'FLOOR') {
+        await axios.put(
+          `http://localhost:5006/structure?type=FLOOR&id=${task.id}`,
+          formData,
+        );
+      } else if (task && task.id !== undefined && task.type === 'SPACE') {
+        await axios.put(
+          `http://localhost:5006/structure?type=SPACE&id=${task.id}`,
+          formData,
+        );
       } else if (task && task.parentId && task.type === 'FLOOR') {
         await axios.post(
           `http://localhost:5006/structure?type=FLOOR&id=${task.parentId}`,
@@ -67,7 +80,7 @@ export default function Form({
 
   return (
     <Dialog
-      header={task ? 'Ekle' : 'Yeni Kayıt'}
+      header={task?.id ? 'Güncelle' : 'Yeni Kayıt'}
       visible={visible}
       style={{ width: '30vw' }}
       onHide={onHide}
@@ -85,7 +98,7 @@ export default function Form({
             required
           />
 
-          <button type="submit">{task ? 'Ekle' : 'Kaydet'}</button>
+          <button type="submit">{task?.id ? 'Güncelle' : 'Kaydet'}</button>
         </form>
       </div>
     </Dialog>

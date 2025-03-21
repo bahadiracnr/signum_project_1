@@ -20,48 +20,19 @@ export default function BasicDemo() {
       .then((response) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const treeData = response.data.map((item: any) => ({
-          label: (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                minWidth: '1370px',
-              }}
-            >
-              <span
-                style={{
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {item.coname}
-              </span>
-              <Button
-                icon="pi pi-plus"
-                className="p-button-sm p-0"
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  boxShadow: 'none',
-                  color: 'black',
-                  width: '1.25rem',
-                  height: '1.25rem',
-                  flexShrink: 0,
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedTask({ parentId: item.id, type: 'FLOOR' });
-                  setFormVisible(true);
-                }}
-                aria-label="Alt birim ekle"
-              />
-            </div>
+          label: renderNodeLabel(
+            item.coname,
+            () => setSelectedTask({ parentId: item.id, type: 'FLOOR' }),
+            () => handleDelete('BUILD', item.id),
+            () =>
+              setSelectedTask({
+                id: item.id,
+                coname: item.coname,
+                type: 'BUILD',
+              }),
           ),
-
           data: item.id,
-          leaf: item.hasFloor === true ? false : true,
+          leaf: !item.hasFloor,
           key: 'Build' + item.no,
           type: 'Build',
         }));
@@ -76,6 +47,7 @@ export default function BasicDemo() {
 
   useEffect(() => {
     fetchTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -91,56 +63,27 @@ export default function BasicDemo() {
         .then((response) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const treeData = response.data.map((item: any) => ({
-            label: (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  minWidth: '1370px',
-                }}
-              >
-                <span
-                  style={{
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {item.coname}
-                </span>
-                <Button
-                  icon="pi pi-plus"
-                  className="p-button-sm p-0"
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    boxShadow: 'none',
-                    color: 'black',
-                    width: '1.25rem',
-                    height: '1.25rem',
-                    flexShrink: 0,
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedTask({ parentId: item.id, type: 'SPACE' });
-                    setFormVisible(true);
-                  }}
-                  aria-label="Alt birim ekle"
-                />
-              </div>
+            label: renderNodeLabel(
+              item.coname,
+              () => setSelectedTask({ parentId: item.id, type: 'SPACE' }),
+              () => handleDelete('FLOOR', item.id),
+              () =>
+                setSelectedTask({
+                  id: item.id,
+                  coname: item.coname,
+                  type: 'FLOOR',
+                }),
             ),
             data: item.id,
-            leaf: item.hasSpace === true ? false : true,
+            leaf: !item.hasSpace,
             key: 'Floor' + item.no,
             type: 'Floor',
           }));
           selectedNode.children = treeData;
-          // setNodes((prev) => [...prev]);
           setLoading(false);
         })
         .catch((error) => {
-          console.error('Error fetching tree data:', error);
+          console.error('Error fetching FLOORs:', error);
           setLoading(false);
         });
     } else if (selectedNode.type === 'Floor') {
@@ -151,21 +94,114 @@ export default function BasicDemo() {
         .then((response) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const treeData = response.data.map((item: any) => ({
-            label: item.coname,
+            label: renderNodeLabel(
+              item.coname,
+              undefined,
+              () => handleDelete('SPACE', item.id),
+              () =>
+                setSelectedTask({
+                  id: item.id,
+                  coname: item.coname,
+                  type: 'SPACE',
+                }),
+            ),
             data: item.id,
             leaf: true,
             key: 'Space' + item.no,
             type: 'Space',
           }));
           selectedNode.children = treeData;
-          // setNodes((prev) => [...prev]);
           setLoading(false);
         })
         .catch((error) => {
-          console.error('Error fetching tree data:', error);
+          console.error('Error fetching SPACEs:', error);
           setLoading(false);
         });
     }
+  };
+
+  const handleDelete = async (type: string, id: number) => {
+    try {
+      await axios.delete(
+        `http://localhost:5006/structure?type=${type}&id=${id}`,
+      );
+      fetchTasks();
+    } catch (error) {
+      console.error('Silme sırasında hata:', error);
+    }
+  };
+
+  const renderNodeLabel = (
+    title: string,
+    onAdd?: () => void,
+    onDelete?: () => void,
+    onUpdate?: () => void,
+  ) => (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        minWidth: '1370px',
+      }}
+    >
+      <span
+        style={{
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {title}
+      </span>
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        {onAdd && (
+          <Button
+            icon="pi pi-plus"
+            className="p-button-sm p-0"
+            style={buttonStyle}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAdd();
+              setFormVisible(true);
+            }}
+          />
+        )}
+        {onUpdate && (
+          <Button
+            icon="pi pi-pencil"
+            className="p-button-sm p-0"
+            style={{ ...buttonStyle, color: 'gray' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpdate();
+              setFormVisible(true);
+            }}
+          />
+        )}
+        {onDelete && (
+          <Button
+            icon="pi pi-minus"
+            className="p-button-sm p-0"
+            style={{ ...buttonStyle, color: 'red' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+
+  const buttonStyle = {
+    background: 'transparent',
+    border: 'none',
+    boxShadow: 'none',
+    width: '1.25rem',
+    height: '1.25rem',
+    flexShrink: 0,
+    color: 'black',
   };
 
   return (
