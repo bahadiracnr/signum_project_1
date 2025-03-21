@@ -4,8 +4,6 @@ export interface Task {
   status: TaskStatus;
 }
 
-// create update, delete işlemlerinde loglama yapılıyor mu ?
-
 // frontend
 // structure create,update, delete
 // task create,update, delete
